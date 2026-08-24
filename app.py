@@ -10,7 +10,7 @@ import json
 import time
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Potato & Onion Commodity Intelligence", page_icon="🥔", layout="wide")
+st.set_page_config(page_title="Potato & Onion Commodity Intelligence", page_icon="🥔", layout="wide", initial_sidebar_state="collapsed")
 CONFIG_FILE=Path("config.json")
 AGMARKNET_URL="https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
 # Public data.gov.in sample key; replace with your own free key from data.gov.in for higher limits.
@@ -700,22 +700,13 @@ html,body,.stApp{background:#f4f7fb;color:#172033;font-family:Inter,Arial,sans-s
 .stTabs [data-baseweb="tab"]{font-weight:600;color:#566174;border-radius:8px 8px 0 0}
 .stTabs [aria-selected="true"]{background:#eaf2fb;color:#1769aa}
 @media(max-width:1000px){.two{grid-template-columns:1fr}}
-div[data-testid="stSidebar"]{background:#fff}
+[data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"],[data-testid="collapsedControl"]{display:none !important;visibility:hidden !important;width:0 !important;min-width:0 !important}
+section[data-testid="stSidebar"]{display:none !important}
+.stApp [data-testid="stAppViewContainer"]{margin-left:0 !important}
 </style>
 """, unsafe_allow_html=True)
 
-with st.sidebar:
-    st.header("Live Controls")
-    st.session_state.config["refresh_seconds"]=st.number_input("Refresh seconds",60,3600,int(st.session_state.config["refresh_seconds"]),60)
-    st.session_state.config["live_api_url"]=st.text_input("Optional live JSON API URL",st.session_state.config.get("live_api_url",""))
-    st.session_state.config["live_api_token"]=st.text_input("API token (optional)",st.session_state.config.get("live_api_token",""),type="password")
-    if st.button("Save configuration"): save(st.session_state.config); st.success("Saved")
-    up=st.file_uploader("Upload market CSV",type="csv")
-    if up:
-        st.session_state.uploaded=pd.read_csv(up)
-        st.session_state.pop("df_cache", None)
-        st.success("CSV loaded")
-    st.info("Minimum CSV: commodity, market, state, modal_price. Optional: min_price, max_price, arrival_mt, stock_mt, buyer_demand_mt, quality_score, freight_rs_qtl, variety, grade, timestamp.")
+# Live API URL/token come from env (LIVE_API_TOKEN) or config.json — no sidebar on the hosted UI.
 
 # Keep frame in session so Risk mandi filters don't re-hit AGMARKNET (avoids white/fade reload).
 if st.session_state.pop("_force_reload", False) or "df_cache" not in st.session_state:
