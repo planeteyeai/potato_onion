@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: onion-potato-commodity
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: LIVE_API_URL
+        value: https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
+      - key: LIVE_API_TOKEN
+        sync: false

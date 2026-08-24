@@ -1,0 +1,26 @@
+# Secrets and local config
+.env
+.env.*
+config.json
+.streamlit/secrets.toml
+.streamlit/credentials.toml
+
+# Runtime cache / history
+agmarknet_cache.json
+modal_history.json
+demand_history.json
+risk_history.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

@@ -1,0 +1,5 @@
+timestamp,market,state,commodity,variety,grade,min_price,modal_price,max_price,arrival_mt,stock_mt,buyer_demand_mt,quality_score,freight_rs_qtl
+2026-08-18T12:20:00,Lasalgaon,Maharashtra,Onion,Red,A,2650,2850,3070,850,4200,1000,91,160
+2026-08-18T12:10:00,Pimpalgaon,Maharashtra,Onion,Red,A,2600,2790,3000,720,3600,850,89,180
+2026-08-18T12:15:00,Indore,Madhya Pradesh,Potato,Jyoti,A,2250,2460,2700,900,5200,1100,93,220
+2026-08-18T12:05:00,Agra,Uttar Pradesh,Potato,Chipsona,A,2300,2510,2780,780,4800,1250,94,260
