@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Potato & Onion Commodity Intelligence Command Center</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--accent:#1769aa;--green:#18864b;--orange:#d97706;--red:#c53030;--purple:#6b46c1}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#10243e;color:#fff;padding:20px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px}
+header h1{margin:0;font-size:23px}header p{margin:5px 0 0;color:#b9c7d8;font-size:13px}
+.live{background:#0e9f62;padding:7px 12px;border-radius:20px;font-size:12px;font-weight:700}
+nav{background:#fff;border-bottom:1px solid var(--line);padding:10px 24px;display:flex;gap:8px;overflow:auto}
+nav button{border:0;background:transparent;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;color:#566174}
+nav button.active,nav button:hover{background:#eaf2fb;color:var(--accent)}
+main{padding:22px;max-width:1500px;margin:auto}.tab{display:none}.tab.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:17px;box-shadow:0 2px 8px #17203308}
+.metric .label{font-size:12px;color:var(--muted)}.metric .value{font-size:26px;font-weight:800;margin:7px 0}.metric .delta{font-size:12px}
+.green{color:var(--green)}.orange{color:var(--orange)}.red{color:var(--red)}.purple{color:var(--purple)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.panel h2{font-size:16px;margin:0 0 14px}.panel h3{font-size:14px;margin:15px 0 8px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+select,input,button.action{padding:9px 11px;border:1px solid #ccd4df;border-radius:7px;background:#fff}
+button.action{background:var(--accent);color:#fff;border:0;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}th{background:#f7f9fc;color:#596579}
+.badge{padding:4px 8px;border-radius:12px;font-weight:700;font-size:10px;background:#edf2f7}.bgreen{background:#e7f7ee;color:var(--green)}.borange{background:#fff4df;color:var(--orange)}.bred{background:#fde9e9;color:var(--red)}
+.bar{height:12px;background:#e9edf3;border-radius:10px;overflow:hidden}.fill{height:100%;border-radius:10px}
+.chart{height:230px;display:flex;align-items:flex-end;gap:15px;padding:15px 10px 0;border-bottom:1px solid #ccd4df}.barcol{flex:1;text-align:center;font-size:11px;color:var(--muted)}.barfill{width:70%;margin:auto;background:#4b83bd;border-radius:5px 5px 0 0}.barval{font-weight:700;color:#172033;margin-bottom:4px}
+.alert{padding:12px;border-left:4px solid var(--orange);background:#fff9ed;border-radius:6px;margin:8px 0;font-size:13px}
+.search{width:260px}.two{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}
+footer{text-align:center;color:#778195;padding:25px;font-size:11px}
+@media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}main{padding:12px}header{padding:15px}.search{width:100%}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>🥔 🧅 Potato & Onion Commodity Intelligence Command Center</h1><p>Live-mode dashboard • Supply • Demand • Price • Storage • Finance • Logistics • Risk</p></div>
+<div class="live">● LIVE MODE <span id="clock"></span></div>
+</header>
+
+<nav>
+<button class="active" onclick="showTab('command',this)">Command Center</button>
+<button onclick="showTab('market',this)">Market & Mandi</button>
+<button onclick="showTab('procurement',this)">Procurement</button>
+<button onclick="showTab('finance',this)">Finance</button>
+<button onclick="showTab('storage',this)">Storage & Logistics</button>
+<button onclick="showTab('risk',this)">Risk & Forecast</button>
+<button onclick="showTab('reports',this)">Reports</button>
+</nav>
+
+<main>
+<section id="command" class="tab active">
+<div class="grid">
+<div class="card metric"><div class="label">POTATO MODAL PRICE</div><div class="value">₹2,460/qtl</div><div class="delta green">▲ 3.2% vs 7-day avg</div></div>
+<div class="card metric"><div class="label">ONION MODAL PRICE</div><div class="value">₹2,850/qtl</div><div class="delta red">▲ 6.4% vs 7-day avg</div></div>
+<div class="card metric"><div class="label">ESTIMATED MARKET STOCK</div><div class="value">9.8 L MT</div><div class="delta">All monitored markets</div></div>
+<div class="card metric"><div class="label">BUYER DEMAND</div><div class="value">+11.4%</div><div class="delta orange">Demand tightening</div></div>
+</div>
+<div class="grid">
+<div class="card"><div class="label">ONION PRICE RISK</div><div class="value red">82/100</div><div class="bar"><div class="fill" style="width:82%;background:#c53030"></div></div><p class="delta">HIGH • supply/arrival pressure</p></div>
+<div class="card"><div class="label">POTATO PRICE RISK</div><div class="value orange">48/100</div><div class="bar"><div class="fill" style="width:48%;background:#d97706"></div></div><p class="delta">MEDIUM</p></div>
+<div class="card"><div class="label">STORAGE UTILIZATION</div><div class="value">68%</div><div class="bar"><div class="fill" style="width:68%;background:#1769aa"></div></div><p class="delta">Available capacity: 2.1 L MT</p></div>
+<div class="card"><div class="label">FINANCE OPPORTUNITY</div><div class="value">₹48 Cr</div><div class="delta purple">Indicative eligible stock</div></div>
+</div>
+<div class="two">
+<div class="panel"><h2>Market Price Snapshot</h2><div class="chart">
+<div class="barcol"><div class="barval">₹2,850</div><div class="barfill" style="height:185px"></div>Onion<br>Lasalgaon</div>
+<div class="barcol"><div class="barval">₹2,790</div><div class="barfill" style="height:176px"></div>Onion<br>Pimpalgaon</div>
+<div class="barcol"><div class="barval">₹2,510</div><div class="barfill" style="height:158px"></div>Potato<br>Agra</div>
+<div class="barcol"><div class="barval">₹2,460</div><div class="barfill" style="height:150px"></div>Potato<br>Indore</div>
+</div></div>
+<div class="panel"><h2>Decision Engine</h2>
+<div class="alert"><b>🧅 Onion:</b> HOLD / NEGOTIATE — demand is stronger than arrivals.</div>
+<div class="alert"><b>🥔 Potato:</b> BUY 40% NOW — monitor processing demand.</div>
+<div class="alert"><b>🏦 Bank:</b> Finance screening opportunity ₹48 Cr.</div>
+<div class="alert"><b>🏛 Government:</b> Monitor onion supply risk in Maharashtra.</div>
+</div></div>
+</section>
+
+<section id="market" class="tab">
+<div class="panel"><h2>Live Market & Mandi Intelligence</h2>
+<div class="controls"><select id="commodityFilter" onchange="filterTable()"><option value="all">All commodities</option><option>Onion</option><option>Potato</option></select><input class="search" id="search" placeholder="Search market/state..." oninput="filterTable()"><button class="action" onclick="refreshData()">↻ Refresh data</button></div>
+<table id="marketTable"><thead><tr><th>Market</th><th>State</th><th>Commodity</th><th>Variety</th><th>Grade</th><th>Min</th><th>Modal</th><th>Max</th><th>Arrivals MT</th><th>Stock MT</th><th>Quality</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>Lasalgaon</td><td>Maharashtra</td><td>Onion</td><td>Red</td><td>A</td><td>2,650</td><td><b>2,850</b></td><td>3,070</td><td>850</td><td>4,200</td><td>91</td><td><span class="badge borange">BUY/HOLD</span></td></tr>
+<tr><td>Pimpalgaon</td><td>Maharashtra</td><td>Onion</td><td>Red</td><td>A</td><td>2,600</td><td><b>2,790</b></td><td>3,000</td><td>720</td><td>3,600</td><td>89</td><td><span class="badge borange">WATCH</span></td></tr>
+<tr><td>Manmad</td><td>Maharashtra</td><td>Onion</td><td>Red</td><td>B</td><td>2,400</td><td><b>2,620</b></td><td>2,850</td><td>620</td><td>3,100</td><td>82</td><td><span class="badge bgreen">BUY</span></td></tr>
+<tr><td>Indore</td><td>Madhya Pradesh</td><td>Potato</td><td>Jyoti</td><td>A</td><td>2,250</td><td><b>2,460</b></td><td>2,700</td><td>900</td><td>5,200</td><td>93</td><td><span class="badge bgreen">BUY</span></td></tr>
+<tr><td>Agra</td><td>Uttar Pradesh</td><td>Potato</td><td>Chipsona</td><td>A</td><td>2,300</td><td><b>2,510</b></td><td>2,780</td><td>780</td><td>4,800</td><td>94</td><td><span class="badge bgreen">BUY/HOLD</span></td></tr>
+<tr><td>Deesa</td><td>Gujarat</td><td>Potato</td><td>Local</td><td>B</td><td>2,100</td><td><b>2,310</b></td><td>2,550</td><td>640</td><td>3,900</td><td>80</td><td><span class="badge">WATCH</span></td></tr>
+</tbody></table></div>
+</section>
+
+<section id="procurement" class="tab">
+<div class="panel"><h2>Bulk Procurement Finder</h2>
+<div class="controls"><select><option>Onion</option><option>Potato</option></select><input type="number" value="1000" placeholder="Required MT"><input type="number" value="300" placeholder="Max freight ₹/qtl"><button class="action">Find best sources</button></div>
+<table><tr><th>Source</th><th>Available MT</th><th>Grade</th><th>Quality</th><th>Modal ₹/qtl</th><th>Freight</th><th>Landed ₹/qtl</th><th>Recommendation</th></tr>
+<tr><td>Lasalgaon</td><td>4,200</td><td>A</td><td>91</td><td>2,850</td><td>160</td><td><b>3,010</b></td><td><span class="badge bgreen">BEST SOURCE</span></td></tr>
+<tr><td>Pimpalgaon</td><td>3,600</td><td>A</td><td>89</td><td>2,790</td><td>180</td><td><b>2,970</b></td><td><span class="badge bgreen">BUY</span></td></tr>
+</table></div>
+<div class="panel"><h2>Buyer Demand</h2><table><tr><th>Buyer segment</th><th>Commodity</th><th>Required</th><th>Grade</th><th>Delivery</th><th>Target</th></tr>
+<tr><td>Food processor</td><td>Potato</td><td>1,500 MT</td><td>A</td><td>10 days</td><td>₹2,550/qtl</td></tr>
+<tr><td>Retail aggregator</td><td>Onion</td><td>2,000 MT</td><td>A</td><td>15 days</td><td>₹3,050/qtl</td></tr></table></div>
+</section>
+
+<section id="finance" class="tab">
+<div class="grid"><div class="card metric"><div class="label">ELIGIBLE STOCK</div><div class="value">₹68 Cr</div></div><div class="card metric"><div class="label">INDICATIVE FINANCE</div><div class="value">₹48 Cr</div></div><div class="card metric"><div class="label">TOP FPO SCORE</div><div class="value green">89/100</div></div><div class="card metric"><div class="label">WAREHOUSE STOCK</div><div class="value">6.4 L MT</div></div></div>
+<div class="panel"><h2>Commodity-backed Finance Screening</h2><table><tr><th>Region</th><th>Commodity</th><th>Stock MT</th><th>Indicative value</th><th>LTV</th><th>Finance potential</th><th>Risk</th></tr>
+<tr><td>Maharashtra</td><td>Onion</td><td>3,20,000</td><td>₹91 Cr</td><td>60%</td><td>₹54.6 Cr</td><td><span class="badge borange">MEDIUM-HIGH</span></td></tr>
+<tr><td>UP/MP</td><td>Potato</td><td>3,10,000</td><td>₹76 Cr</td><td>70%</td><td>₹53.2 Cr</td><td><span class="badge bgreen">MEDIUM</span></td></tr></table>
+<p style="font-size:11px;color:#687386">Indicative screening only. Actual lending requires KYC, stock/warehouse verification, insurance, valuation and lender policy.</p></div>
+</section>
+
+<section id="storage" class="tab">
+<div class="grid"><div class="card metric"><div class="label">TOTAL CAPACITY</div><div class="value">6.5 L MT</div></div><div class="card metric"><div class="label">OCCUPIED</div><div class="value">68%</div></div><div class="card metric"><div class="label">AVAILABLE</div><div class="value">2.1 L MT</div></div><div class="card metric"><div class="label">AVG STORAGE COST</div><div class="value">₹120/qtl</div></div></div>
+<div class="panel"><h2>Storage Economics</h2><table><tr><th>Location</th><th>Commodity</th><th>Capacity</th><th>Occupied</th><th>Available</th><th>Cost</th><th>Receipt</th></tr>
+<tr><td>Nashik</td><td>Onion</td><td>1,80,000 MT</td><td>61%</td><td>70,200</td><td>₹120/qtl</td><td>Yes</td></tr>
+<tr><td>Agra</td><td>Potato</td><td>2,20,000 MT</td><td>76%</td><td>52,800</td><td>₹135/qtl</td><td>Yes</td></tr></table></div>
+<div class="panel"><h2>Logistics Intelligence</h2><table><tr><th>Route</th><th>Commodity</th><th>Qty</th><th>Freight</th><th>ETA</th><th>Landed impact</th></tr>
+<tr><td>Lasalgaon → Mumbai</td><td>Onion</td><td>500 MT</td><td>₹160/qtl</td><td>8h</td><td>₹160/qtl</td></tr>
+<tr><td>Agra → Delhi</td><td>Potato</td><td>500 MT</td><td>₹90/qtl</td><td>7h</td><td>₹90/qtl</td></tr></table></div>
+</section>
+
+<section id="risk" class="tab">
+<div class="two"><div class="panel"><h2>Price Risk</h2><h3>Onion — 82/100 HIGH</h3><div class="bar"><div class="fill" style="width:82%;background:#c53030"></div></div><p>Drivers: tightening arrivals, demand increase, weather sensitivity, policy/export exposure.</p>
+<h3>Potato — 48/100 MEDIUM</h3><div class="bar"><div class="fill" style="width:48%;background:#d97706"></div></div><p>Drivers: storage inventory, processing demand, regional price spread.</p></div>
+<div class="panel"><h2>Supply-Demand Signal</h2><div class="alert"><b>Onion:</b> arrivals below recent demand growth — monitor price acceleration.</div><div class="alert"><b>Potato:</b> inventory remains comfortable — selective procurement.</div></div></div>
+<div class="panel"><h2>7 / 15 / 30 Day Scenario Forecast</h2><table><tr><th>Commodity</th><th>Current</th><th>7D Bear/Base/Bull</th><th>15D Bear/Base/Bull</th><th>30D Bear/Base/Bull</th></tr>
+<tr><td>Onion</td><td>₹2,850</td><td>₹2,650 / ₹2,900 / ₹3,150</td><td>₹2,600 / ₹3,050 / ₹3,400</td><td>₹2,500 / ₹3,200 / ₹3,800</td></tr>
+<tr><td>Potato</td><td>₹2,460</td><td>₹2,350 / ₹2,500 / ₹2,650</td><td>₹2,300 / ₹2,520 / ₹2,750</td><td>₹2,250 / ₹2,550 / ₹2,900</td></tr></table>
+</div>
+<div class="panel"><h2>Hedge / Exposure Monitor</h2><table><tr><th>Portfolio</th><th>Physical exposure</th><th>Suggested hedge</th><th>Risk</th><th>Action</th></tr><tr><td>Onion inventory</td><td>₹2.80 Cr</td><td>60–75%</td><td>High</td><td><span class="badge bred">REVIEW HEDGE</span></td></tr><tr><td>Potato inventory</td><td>₹1.90 Cr</td><td>40–60%</td><td>Medium</td><td><span class="badge borange">MONITOR</span></td></tr></table></div>
+</section>
+
+<section id="reports" class="tab">
+<div class="panel"><h2>Report Center</h2><p>Generate/download a browser-ready CSV report from the dashboard data.</p>
+<div class="controls"><button class="action" onclick="downloadCSV()">Download Daily Market Intelligence CSV</button><button class="action" onclick="downloadSummary()">Download Commodity Summary CSV</button></div>
+<table><tr><th>Report</th><th>Audience</th><th>Frequency</th><th>Purpose</th></tr>
+<tr><td>Daily Potato Intelligence</td><td>Farmer/FPO/Buyer</td><td>Daily</td><td>Price, arrivals, stock, demand, action</td></tr>
+<tr><td>Daily Onion Intelligence</td><td>Government/Trader/Buyer</td><td>Daily</td><td>Supply, price, storage, risk</td></tr>
+<tr><td>Finance Opportunity</td><td>Bank/NABARD ecosystem</td><td>Weekly</td><td>Stock and finance screening</td></tr>
+<tr><td>Procurement Opportunity</td><td>Bulk buyers</td><td>Live</td><td>Best source and landed price</td></tr>
+<tr><td>Risk & Forecast</td><td>Trader/hedger</td><td>Daily</td><td>Scenario and exposure</td></tr></table></div>
+</section>
+</main>
+<footer>Prototype dashboard • Replace illustrative figures with authenticated official feeds before commercial deployment.</footer>
+
+<script>
+function showTab(id,btn){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active')}
+function filterTable(){let c=document.getElementById('commodityFilter').value.toLowerCase(),q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('#marketTable tbody tr').forEach(r=>{let t=r.innerText.toLowerCase();r.style.display=(c==='all'||t.includes(c))&&t.includes(q)?'':'none'})}
+function refreshData(){document.querySelector('.live').style.opacity='.5';setTimeout(()=>{document.querySelector('.live').style.opacity='1';alert('Dashboard refreshed. Connect the production API to replace illustrative data.');},400)}
+function csv(rows){return rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n')}
+function download(name,text){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;a.click()}
+function downloadCSV(){download('daily_market_intelligence.csv',csv([['Market','State','Commodity','Variety','Grade','Min','Modal','Max','Arrivals MT','Stock MT','Quality','Action'],['Lasalgaon','Maharashtra','Onion','Red','A',2650,2850,3070,850,4200,91,'BUY/HOLD'],['Pimpalgaon','Maharashtra','Onion','Red','A',2600,2790,3000,720,3600,89,'WATCH'],['Indore','Madhya Pradesh','Potato','Jyoti','A',2250,2460,2700,900,5200,93,'BUY'],['Agra','Uttar Pradesh','Potato','Chipsona','A',2300,2510,2780,780,4800,94,'BUY/HOLD']]))}
+function downloadSummary(){download('commodity_summary.csv',csv([['Commodity','Average Modal','Arrivals MT','Stock MT','Demand MT','Risk'],['Onion',2850,2190,10900,2850,'HIGH'],['Potato',2460,2320,13900,2350,'MEDIUM']]))}
+function clock(){document.getElementById('clock').textContent=' '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}setInterval(clock,1000);clock();
+</script>
+</body></html>
