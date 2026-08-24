@@ -272,6 +272,17 @@ def _resample_period(daily_df, period):
         d["Period"]=d["Day"].dt.to_period("M").apply(lambda p: p.start_time.strftime("%b %Y"))
     return d.groupby("Period",as_index=False)[["Onion","Potato"]].mean().round(1)
 
+def _draw_chart(chart):
+    """Force a light Vega chart so Render/dark-mode Streamlit does not paint black graphs."""
+    chart=(chart.configure(background="#ffffff")
+           .configure_view(fill="#ffffff",strokeWidth=0)
+           .configure_axis(labelColor="#172033",titleColor="#172033",gridColor="#e8edf4",domainColor="#c5cedb")
+           .configure_legend(labelColor="#172033",titleColor="#172033"))
+    try:
+        st.altair_chart(chart, use_container_width=True, theme=None)
+    except TypeError:
+        st.altair_chart(chart, use_container_width=True)
+
 def _bars_with_trend(wide_df, y_title, show_avg=False, height=300, single_trend=True):
     """Grouped Onion/Potato bars + one clean polyline through EVERY bar top (high & low)."""
     import altair as alt
@@ -318,7 +329,7 @@ def _bars_with_trend(wide_df, y_title, show_avg=False, height=300, single_trend=
     if show_avg and len(long):
         avg_df=pd.DataFrame({"avg":[avg_val]})
         layers.append(alt.Chart(avg_df).mark_rule(color="#d97706",strokeWidth=2,strokeDash=[4,4]).encode(y=alt.Y("avg:Q",scale=y_scale)))
-    st.altair_chart(alt.layer(*layers).properties(height=height), use_container_width=True)
+    _draw_chart(alt.layer(*layers).properties(height=height))
     return avg_val
 
 def _table_multi_chart(frame, x_col, value_cols, title, top_n=10, height=300, sort_by=None):
@@ -386,7 +397,7 @@ def _table_multi_chart(frame, x_col, value_cols, title, top_n=10, height=300, so
     )
     avg_df=pd.DataFrame({"avg":[avg_val]})
     rule=alt.Chart(avg_df).mark_rule(color="#d97706",strokeWidth=2,strokeDash=[4,4]).encode(y=alt.Y("avg:Q",scale=y_scale))
-    st.altair_chart(alt.layer(bars,line,rule).properties(height=height), use_container_width=True)
+    _draw_chart(alt.layer(bars,line,rule).properties(height=height))
 
 def _table_chart(frame, x_col, y_col, title, color_col=None, top_n=18, y_title=None, height=280):
     """Single-metric table chart with zigzag line through actual bar values."""
@@ -472,7 +483,7 @@ def _show_op_bars(title, metrics, height=220):
             color=alt.Color("Commodity:N",scale=alt.Scale(domain=["Onion","Potato"],range=["#c53030","#1769aa"]),legend=alt.Legend(orient="top")),
             tooltip=["Metric:N","Commodity:N","Value:Q"]
         ).properties(height=height))
-        st.altair_chart(chart, use_container_width=True)
+        _draw_chart(chart)
     except Exception:
         st.bar_chart(cdf.pivot(index="Metric",columns="Commodity",values="Value"), height=height)
 
@@ -665,7 +676,8 @@ if not str(st.session_state.config.get("live_api_token","")).strip():
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-html,body,.stApp{background:#f4f7fb;color:#172033;font-family:Inter,Arial,sans-serif}
+html,body,.stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"]{background:#f4f7fb !important;color:#172033 !important;font-family:Inter,Arial,sans-serif;color-scheme:light !important}
+.stApp{--primary-color:#1769aa;--text-color:#172033;--background-color:#f4f7fb;--secondary-background-color:#ffffff}
 #MainMenu,footer,header[data-testid="stHeader"]{visibility:hidden}
 .block-container{padding-top:1.2rem;max-width:1500px}
 .poc-header{background:#10243e;color:#fff;padding:20px 28px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:12px}
@@ -697,8 +709,17 @@ html,body,.stApp{background:#f4f7fb;color:#172033;font-family:Inter,Arial,sans-s
 .barcol{flex:1;text-align:center;font-size:11px;color:#687386}.barfill{width:70%;margin:auto;background:#4b83bd;border-radius:5px 5px 0 0}
 .barval{font-weight:700;color:#172033;margin-bottom:4px}
 .stTabs [data-baseweb="tab-list"]{background:#fff;border-bottom:1px solid #e5e9f0;gap:8px;padding:8px 8px 0}
-.stTabs [data-baseweb="tab"]{font-weight:600;color:#566174;border-radius:8px 8px 0 0}
-.stTabs [aria-selected="true"]{background:#eaf2fb;color:#1769aa}
+.stTabs [data-baseweb="tab"],.stTabs button[data-baseweb="tab"],.stTabs [role="tab"]{
+  font-weight:600 !important;color:#172033 !important;background:transparent !important;
+  border:none !important;outline:none !important;box-shadow:none !important;border-radius:8px 8px 0 0 !important}
+.stTabs [data-baseweb="tab"]:hover,.stTabs button[data-baseweb="tab"]:hover,.stTabs [role="tab"]:hover{
+  color:#1769aa !important;background:#eaf2fb !important;border:none !important;outline:none !important;box-shadow:none !important}
+.stTabs [aria-selected="true"],.stTabs [data-baseweb="tab"][aria-selected="true"],.stTabs [role="tab"][aria-selected="true"]{
+  background:#eaf2fb !important;color:#1769aa !important;border:none !important;box-shadow:none !important}
+.stTabs [data-baseweb="tab"]:focus,.stTabs [data-baseweb="tab"]:focus-visible,.stTabs button:focus,.stTabs [role="tab"]:focus{
+  outline:none !important;box-shadow:none !important;border:none !important}
+[data-testid="stVegaLiteChart"],[data-testid="stArrowVegaLiteChart"],.vega-embed,.vega-embed .chart-wrapper,canvas{
+  background:#ffffff !important}
 @media(max-width:1000px){.two{grid-template-columns:1fr}}
 [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"],[data-testid="collapsedControl"]{display:none !important;visibility:hidden !important;width:0 !important;min-width:0 !important}
 section[data-testid="stSidebar"]{display:none !important}
