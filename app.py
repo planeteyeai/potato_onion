@@ -514,7 +514,7 @@ def _market_analysis(frame, market, oni_r, pot_r, oni_px, pot_px):
         mkts=cx.market.nunique()
         tone="tight" if ratio>1.15 else ("loose" if ratio<.75 else "balanced")
         parts.append(
-            f"{com}: modal ₹{px:,.0f}/qtl, risk {r}/100, demand/arrival {ratio:.2f}× ({tone}) across {len(cx)} row(s) / {mkts} market(s)."
+            f"{com}: modal ₹{px:,.0f}/Qtl, risk {r}/100, demand/arrival {ratio:.2f}× ({tone}) across {len(cx)} row(s) / {mkts} market(s)."
         )
     return " · ".join(parts)
 
@@ -952,8 +952,8 @@ t1,t_mkt,t2,t3,t4,t5,t6=st.tabs(["Command Center","Market & Mandi","Procurement"
 
 with t1:
     c1,c2,c3,c4=st.columns(4)
-    c1.markdown(_card("POTATO MODAL PRICE", f"₹{pot_px:,.0f}/qtl" if pot_px else "—", pot_delta), unsafe_allow_html=True)
-    c2.markdown(_card("ONION MODAL PRICE", f"₹{oni_px:,.0f}/qtl" if oni_px else "—", oni_delta, "red" if oni_risk>=70 else ""), unsafe_allow_html=True)
+    c1.markdown(_card("POTATO MODAL PRICE", f"₹{pot_px:,.0f}/Qtl" if pot_px else "—", pot_delta), unsafe_allow_html=True)
+    c2.markdown(_card("ONION MODAL PRICE", f"₹{oni_px:,.0f}/Qtl" if oni_px else "—", oni_delta, "red" if oni_risk>=70 else ""), unsafe_allow_html=True)
     c3.markdown(_card("ESTIMATED MARKET STOCK", f"{stock_mt_total:,.0f} MT", "Derived from live prices × grade"), unsafe_allow_html=True)
     c4.markdown(_card("BUYER DEMAND", f"{dmd_pct:+.1f}%", "Derived demand vs arrivals", "orange"), unsafe_allow_html=True)
     r1,r2,r3,r4=st.columns(4)
@@ -973,13 +973,13 @@ with t1:
     with right:
         st.markdown(
             f'<div class="panel"><h2>Decision Engine</h2>'
-            f'<div class="alert"><b>🧅 Onion:</b> {_esc(oni_act)} — modal ₹{oni_px:,.0f}/qtl, demand/arrival {oni_ratio:.2f}×, top state {_esc(oni_state)}.</div>'
-            f'<div class="alert"><b>🥔 Potato:</b> {_esc(pot_act)} — modal ₹{pot_px:,.0f}/qtl, demand/arrival {pot_ratio:.2f}×, top state {_esc(pot_state)}.</div>'
+            f'<div class="alert"><b>🧅 Onion:</b> {_esc(oni_act)} — modal ₹{oni_px:,.0f}/Qtl, demand/arrival {oni_ratio:.2f}×, top state {_esc(oni_state)}.</div>'
+            f'<div class="alert"><b>🥔 Potato:</b> {_esc(pot_act)} — modal ₹{pot_px:,.0f}/Qtl, demand/arrival {pot_ratio:.2f}×, top state {_esc(pot_state)}.</div>'
             f'<div class="alert"><b>🏦 Bank:</b> Finance screening opportunity ₹{fin_cr:,.1f} Cr from current mandi prices × stock.</div>'
             f'<div class="alert"><b>🏛 Government:</b> {_esc(gov_line)}</div></div>',
             unsafe_allow_html=True)
     _show_op_bars("Onion vs Potato — Command Snapshot", {
-        "Modal ₹/qtl": _op_metric(df,"modal_price","mean"),
+        "Modal ₹/Qtl": _op_metric(df,"modal_price","mean"),
         "Risk /100": {"Onion":float(oni_risk),"Potato":float(pot_risk)},
         "Stock MT": _op_metric(df,"stock_mt","sum"),
         "Demand MT": _op_metric(df,"buyer_demand_mt","sum"),
@@ -1031,11 +1031,11 @@ with t_mkt:
 with t2:
     st.markdown('<div class="panel"><h2>Bulk Procurement Finder</h2></div>', unsafe_allow_html=True)
     com=st.selectbox("Commodity",["Onion","Potato"]); qty=st.number_input("Required quantity (MT)",100,100000,1000,100)
-    mf=st.number_input("Maximum freight ₹/qtl",0,2000,300,10)
+    mf=st.number_input("Maximum freight ₹/Qtl",0,2000,300,10)
     x=df[df.commodity==com].copy(); x["landed_price"]=x.modal_price+x.freight_rs_qtl
     x=x[x.freight_rs_qtl<=mf].sort_values("landed_price")
     st.dataframe(x[["market","state","variety","grade","arrival_mt","stock_mt","modal_price","freight_rs_qtl","landed_price","quality_score"]],use_container_width=True)
-    if len(x): st.success(f"Best indicative source: {x.iloc[0].market}, {x.iloc[0].state} — ₹{x.iloc[0].landed_price:,.0f}/qtl landed.")
+    if len(x): st.success(f"Best indicative source: {x.iloc[0].market}, {x.iloc[0].state} — ₹{x.iloc[0].landed_price:,.0f}/Qtl landed.")
     # One graph from procurement table rows
     if len(x):
         px=x.head(16).copy()
@@ -1055,7 +1055,7 @@ with t2:
         gr=str(cx.grade.mode().iloc[0]) if len(cx.grade.mode()) else "A"
         days=10 if com_name=="Potato" else 15
         seg="Food processor" if com_name=="Potato" else "Retail aggregator"
-        dem_rows+=f"<tr><td>{seg}</td><td>{com_name}</td><td>{req:,.0f} MT</td><td>{_esc(gr)}</td><td>{days} days</td><td>₹{tgt:,.0f}/qtl</td></tr>"
+        dem_rows+=f"<tr><td>{seg}</td><td>{com_name}</td><td>{req:,.0f} MT</td><td>{_esc(gr)}</td><td>{days} days</td><td>₹{tgt:,.0f}/Qtl</td></tr>"
         dem_rows+=f"<tr><td colspan='6'><b>{com_name} demand trail:</b> Yesterday {yest:,.0f} MT · Today {tod:,.0f} MT · Tomorrow (est.) {tom:,.0f} MT</td></tr>"
     st.markdown(
         '<div class="panel"><h2>Buyer Demand</h2><table class="poc-table demand-table"><tr><th>Buyer segment</th><th>Commodity</th>'
@@ -1069,9 +1069,9 @@ with t2:
         if cx.empty: continue
         req=float(cx.buyer_demand_mt.sum())
         yest,tod,tom=_demand_ytm(dem_hist, com_name.lower(), req)
-        dem_chart.append({"Commodity":com_name,"Yesterday":yest,"Today":tod,"Tomorrow":tom,"Target ₹/qtl":float(cx.modal_price.mean())*1.05})
+        dem_chart.append({"Commodity":com_name,"Yesterday":yest,"Today":tod,"Tomorrow":tom,"Target ₹/Qtl":float(cx.modal_price.mean())*1.05})
     if dem_chart:
-        _table_multi_chart(pd.DataFrame(dem_chart),"Commodity",["Yesterday","Today","Tomorrow","Target ₹/qtl"],"Buyer Demand table — all values",top_n=5,sort_by="Today")
+        _table_multi_chart(pd.DataFrame(dem_chart),"Commodity",["Yesterday","Today","Tomorrow","Target ₹/Qtl"],"Buyer Demand table — all values",top_n=5,sort_by="Today")
 
 with t3:
     g1,g2,g3,g4=st.columns(4)
@@ -1115,9 +1115,9 @@ with t4:
     s1.markdown(_card("TOTAL CAPACITY", f"{storage_cap:,.0f} MT", "Stock × 1.45 buffer (derived)"), unsafe_allow_html=True)
     s2.markdown(_card("OCCUPIED", f"{storage_occ:.0f}%", "Derived from live stock"), unsafe_allow_html=True)
     s3.markdown(_card("AVAILABLE", f"{storage_avail:,.0f} MT", "Derived"), unsafe_allow_html=True)
-    s4.markdown(_card("AVG STORAGE COST", f"₹{avg_storage_cost:,.0f}/qtl", "From live quality"), unsafe_allow_html=True)
+    s4.markdown(_card("AVG STORAGE COST", f"₹{avg_storage_cost:,.0f}/Qtl", "From live quality"), unsafe_allow_html=True)
     st.markdown('<div class="panel"><h2>Storage Economics</h2></div>', unsafe_allow_html=True)
-    x=df.copy(); x["storage_cost"]=st.number_input("Storage cost ₹/qtl/month",0,2000,int(max(60,min(400,round(avg_storage_cost)))),10); x["loss_pct"]=st.number_input("Expected loss %",0.0,30.0,max(2.0,min(12.0,round(100-fpo_score,1)/8)),.5)
+    x=df.copy(); x["storage_cost"]=st.number_input("Storage cost ₹/Qtl/month",0,2000,int(max(60,min(400,round(avg_storage_cost)))),10); x["loss_pct"]=st.number_input("Expected loss %",0.0,30.0,max(2.0,min(12.0,round(100-fpo_score,1)/8)),.5)
     x["net_after_storage"]=x.modal_price-x.freight_rs_qtl-x.storage_cost-x.modal_price*x.loss_pct/100
     st.dataframe(x[["market","commodity","stock_mt","modal_price","freight_rs_qtl","storage_cost","loss_pct","net_after_storage"]].sort_values("net_after_storage",ascending=False),use_container_width=True)
     # One graph from storage economics table
@@ -1139,7 +1139,7 @@ with t4:
         fr=float(row.freight_rs_qtl)
         eta=max(4,int(round(fr/22)))
         route=f"{row.market} → {hub}"
-        log_rows+=f"<tr><td>{_esc(row.market)} → {_esc(hub)}</td><td>{com_name}</td><td>{qty:,.0f} MT</td><td>₹{fr:,.0f}/qtl</td><td>{eta}h</td><td>₹{fr:,.0f}/qtl</td></tr>"
+        log_rows+=f"<tr><td>{_esc(row.market)} → {_esc(hub)}</td><td>{com_name}</td><td>{qty:,.0f} MT</td><td>₹{fr:,.0f}/Qtl</td><td>{eta}h</td><td>₹{fr:,.0f}/Qtl</td></tr>"
         log_data.append({"Route":route,"Commodity":com_name,"Qty MT":qty,"Freight":fr,"ETA h":eta,"Landed impact":fr})
     st.markdown(
         '<div class="panel"><h2>Logistics Intelligence</h2><table class="poc-table"><tr><th>Route</th><th>Commodity</th>'
@@ -1176,11 +1176,11 @@ with t5:
         px=float(x.modal_price.mean())
         n=len(x)
         if ratio>1.15:
-            msg=f"demand {ratio:.2f}× arrivals across {n} mandis — modal ₹{px:,.0f}/qtl, monitor price acceleration."
+            msg=f"demand {ratio:.2f}× arrivals across {n} mandis — modal ₹{px:,.0f}/Qtl, monitor price acceleration."
         elif ratio<.75:
-            msg=f"arrivals exceed demand (ratio {ratio:.2f}) across {n} mandis — modal ₹{px:,.0f}/qtl, selective procurement."
+            msg=f"arrivals exceed demand (ratio {ratio:.2f}) across {n} mandis — modal ₹{px:,.0f}/Qtl, selective procurement."
         else:
-            msg=f"supply-demand balanced (ratio {ratio:.2f}) across {n} mandis — modal ₹{px:,.0f}/qtl, watch spreads."
+            msg=f"supply-demand balanced (ratio {ratio:.2f}) across {n} mandis — modal ₹{px:,.0f}/Qtl, watch spreads."
         return f"<b>{com}:</b> {msg}"
     def _hedge(com, score):
         x=df[df.commodity.str.lower()==com.lower()]
@@ -1218,9 +1218,9 @@ with t5:
         risk_daily=_dual_risk_chart(risk_hist, oni_today, pot_today, market=risk_mandi, days=lookback)
         price_view=_resample_period(price_daily, risk_period)
         risk_view=_resample_period(risk_daily, risk_period)
-        st.caption("Price (₹/qtl) — from mandi modal table data")
+        st.caption("Price (₹/Qtl) — from mandi modal table data")
         try:
-            _bars_with_trend(price_view, "Modal ₹/qtl", show_avg=True, height=260)
+            _bars_with_trend(price_view, "Modal ₹/Qtl", show_avg=True, height=260)
         except Exception:
             st.bar_chart(price_view.set_index("Period")[["Onion","Potato"]], height=260)
         st.caption("Risk (/100) — average shown above")
@@ -1262,7 +1262,7 @@ with t5:
     ])
     st.caption("Forecast table on chart (base scenario) — bars + one trend line")
     try:
-        _bars_with_trend(forecast_chart, "₹/qtl", show_avg=False, height=240, single_trend=True)
+        _bars_with_trend(forecast_chart, "₹/Qtl", show_avg=False, height=240, single_trend=True)
     except Exception:
         st.bar_chart(forecast_chart.set_index("Period")[["Onion","Potato"]], height=240)
     st.markdown(f'''
@@ -1278,7 +1278,7 @@ with t5:
     # Exposure + modal from the hedge/forecast tables — one trend line only
     expo_modal=pd.DataFrame([
         {"Period":"Exposure ₹ Cr","Onion":float(oni_h[0]),"Potato":float(pot_h[0])},
-        {"Period":"Modal ₹/qtl","Onion":float(oni_cur),"Potato":float(pot_cur)},
+        {"Period":"Modal ₹/Qtl","Onion":float(oni_cur),"Potato":float(pot_cur)},
         {"Period":"Risk /100","Onion":float(oni_risk),"Potato":float(pot_risk)},
         {"Period":"7D base ₹","Onion":float(oni_n[0][1]),"Potato":float(pot_n[0][1])},
         {"Period":"15D base ₹","Onion":float(oni_n[1][1]),"Potato":float(pot_n[1][1])},
@@ -1327,7 +1327,7 @@ with t6:
     s=x.groupby("commodity").agg(avg_modal=("modal_price","mean"),arrivals_mt=("arrival_mt","sum"),stock_mt=("stock_mt","sum"),demand_mt=("buyer_demand_mt","sum")).reset_index()
     st.dataframe(s,use_container_width=True)
     _show_op_bars("Onion vs Potato — Report Summary", {
-        "Modal ₹/qtl": _op_metric(x,"modal_price","mean"),
+        "Modal ₹/Qtl": _op_metric(x,"modal_price","mean"),
         "Arrivals MT": _op_metric(x,"arrival_mt","sum"),
         "Stock MT": _op_metric(x,"stock_mt","sum"),
         "Demand MT": _op_metric(x,"buyer_demand_mt","sum"),
@@ -1342,4 +1342,4 @@ with t6:
         '<tr><td>Risk & Forecast</td><td>Trader/hedger</td><td>Daily</td><td>Scenario and exposure</td></tr></table>',
         unsafe_allow_html=True)
 
-st.markdown('<p style="text-align:center;color:#778195;padding:25px;font-size:11px">Prototype dashboard • Replace illustrative figures with authenticated official feeds before commercial deployment.</p>', unsafe_allow_html=True)
+st.markdown('<p style="text-align:center;color:#778195;padding:25px;font-size:11px">planeteye farm ai</p>', unsafe_allow_html=True)
