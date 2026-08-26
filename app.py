@@ -732,13 +732,7 @@ def load():
             if kind=="cdn":
                 raw, fetched=fetch_cdn_feed(feed_url)
                 if raw is not None and len(raw):
-                    when=f" (snapshot {fetched})" if fetched else ""
-                    info=(
-                        f"Serving AGMARKNET via CDN{when}. "
-                        "True live government API is unreliable from non-India hosts; "
-                        "refresh the GitHub feed from India for newer prices."
-                    ) if on_render else ""
-                    out=_from_frame(raw, "AGMARKNET CDN", info)
+                    out=_from_frame(raw, "AGMARKNET CDN")
                     if out: return out
             elif kind=="gov" and url and _is_agmarknet(url):
                 raw, freshness=fetch_agmarknet(url, token or SAMPLE_API_KEY)
