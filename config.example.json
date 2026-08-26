@@ -1,5 +1,6 @@
 {
   "refresh_seconds": 60,
   "live_api_url": "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
-  "live_api_token": ""
+  "live_api_token": "",
+  "live_feed_url": "https://cdn.jsdelivr.net/gh/Internsplaneteyeinfra/onion_potato_commodity@main/feeds/agmarknet_latest.json"
 }

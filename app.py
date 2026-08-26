@@ -13,17 +13,26 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Potato & Onion Commodity Intelligence", page_icon="🥔", layout="wide", initial_sidebar_state="collapsed")
 CONFIG_FILE=Path("config.json")
 AGMARKNET_URL="https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+# Public CDN snapshot (jsDelivr → GitHub). Updated by Actions / local refresh script.
+DEFAULT_FEED_URL="https://cdn.jsdelivr.net/gh/Internsplaneteyeinfra/onion_potato_commodity@main/feeds/agmarknet_latest.json"
 # Public data.gov.in sample key; replace with your own free key from data.gov.in for higher limits.
 SAMPLE_API_KEY="579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"
-DEFAULT={"refresh_seconds":60,"live_api_url":AGMARKNET_URL,"live_api_token":SAMPLE_API_KEY}
+DEFAULT={"refresh_seconds":60,"live_api_url":AGMARKNET_URL,"live_api_token":SAMPLE_API_KEY,"live_feed_url":DEFAULT_FEED_URL}
 STATIC_FIELDS=["arrival_mt","stock_mt","buyer_demand_mt","quality_score","freight_rs_qtl"]
 LIVE_PRICE_FIELDS=["timestamp","market","state","commodity","variety","grade","min_price","modal_price","max_price"]
 API_HEADERS={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36","Accept":"application/json"}
 CACHE_FILE=Path("agmarknet_cache.json")
+SEED_FILE=Path("agmarknet_seed.json")  # committed fallback for hosts where data.gov.in is slow/blocked
+FEED_FILE=Path("feeds/agmarknet_latest.json")  # local copy of CDN feed (same repo)
 HISTORY_FILE=Path("modal_history.json")
 DEMAND_FILE=Path("demand_history.json")
 RISK_FILE=Path("risk_history.json")
 LOGO_FILE=Path("planeteye_logo.png")
+# Render (US/EU) → api.data.gov.in is often slow; allow longer connect and a few retries.
+API_TIMEOUT=(20, 45)
+API_RETRIES=3
+MAX_PAGES_PER_COMMODITY=5
+CDN_TIMEOUT=(8, 20)
 
 def _secret(name, default=""):
     val=(os.environ.get(name) or "").strip()
@@ -40,10 +49,13 @@ def cfg():
         except: pass
     url=_secret("LIVE_API_URL") or _secret("live_api_url")
     token=_secret("LIVE_API_TOKEN") or _secret("DATA_GOV_IN_API_KEY") or _secret("live_api_token")
+    feed=_secret("LIVE_FEED_URL") or _secret("live_feed_url")
     if url: c["live_api_url"]=url
     if token: c["live_api_token"]=token
+    if feed: c["live_feed_url"]=feed
     if not str(c.get("live_api_url","")).strip(): c["live_api_url"]=AGMARKNET_URL
     if not str(c.get("live_api_token","")).strip(): c["live_api_token"]=SAMPLE_API_KEY
+    if not str(c.get("live_feed_url","")).strip(): c["live_feed_url"]=DEFAULT_FEED_URL
     return c
 
 def save(c): CONFIG_FILE.write_text(json.dumps(c,indent=2))
@@ -52,73 +64,153 @@ def _is_agmarknet(url):
     u=(url or "").lower()
     return "api.data.gov.in" in u or "9ef84268-d588-465a-a308-a864a43d0070" in u
 
+def _read_json_records(path):
+    if not path.exists():
+        return None, None, None
+    try:
+        payload=json.loads(path.read_text(encoding="utf-8"))
+        recs=payload.get("records") or []
+        if recs:
+            return pd.DataFrame(recs), payload.get("fetched_at",""), payload.get("source","")
+    except Exception:
+        pass
+    return None, None, None
+
 def _read_cache():
-    if CACHE_FILE.exists():
-        try:
-            payload=json.loads(CACHE_FILE.read_text(encoding="utf-8"))
-            recs=payload.get("records") or []
-            if recs: return pd.DataFrame(recs), payload.get("fetched_at","")
-        except Exception:
-            pass
-    return None, None
+    """Prefer runtime cache; then local CDN feed file; then committed seed."""
+    df, fetched, _=_read_json_records(CACHE_FILE)
+    if df is not None and len(df):
+        return df, fetched, "cached"
+    df, fetched, _=_read_json_records(FEED_FILE)
+    if df is not None and len(df):
+        return df, fetched, "cdn-local"
+    df, fetched, _=_read_json_records(SEED_FILE)
+    if df is not None and len(df):
+        return df, fetched, "seed"
+    return None, None, None
 
 def _write_cache(records):
     CACHE_FILE.write_text(json.dumps({"fetched_at":datetime.now().isoformat(),"records":records},ensure_ascii=False),encoding="utf-8")
 
+def fetch_cdn_feed(feed_url):
+    """Pull near-live AGMARKNET JSON from CDN / GitHub (reachable from Render)."""
+    url=(feed_url or "").strip()
+    if not url:
+        return None, None
+    # Bust jsDelivr edge cache about once an hour
+    bust=datetime.now().strftime("%Y%m%d%H")
+    sep="&" if "?" in url else "?"
+    try:
+        r=requests.get(f"{url}{sep}v={bust}", headers=API_HEADERS, timeout=CDN_TIMEOUT)
+        r.raise_for_status()
+        payload=r.json()
+        if isinstance(payload, list):
+            recs=payload
+            fetched=""
+        else:
+            recs=payload.get("records") or payload.get("data") or []
+            fetched=payload.get("fetched_at","")
+        if recs:
+            return pd.DataFrame(recs), fetched
+    except Exception:
+        pass
+    # Local feed file from the same deploy (no network)
+    df, fetched, _=_read_json_records(FEED_FILE)
+    if df is not None and len(df):
+        return df, fetched
+    return None, None
+
 def _agmarknet_page(url, api_key, commodity, offset=0, limit=100):
     params={"api-key":api_key,"format":"json","limit":limit,"offset":offset,"filters[commodity]":commodity}
-    r=requests.get(url,params=params,headers=API_HEADERS,timeout=(8,35))
-    r.raise_for_status()
-    payload=r.json()
-    recs=payload.get("records") or payload.get("data") or []
-    total=int(payload.get("total") or len(recs) or 0)
-    return recs, total, len(recs)
+    last_err=None
+    for attempt in range(API_RETRIES):
+        try:
+            r=requests.get(url,params=params,headers=API_HEADERS,timeout=API_TIMEOUT)
+            r.raise_for_status()
+            payload=r.json()
+            recs=payload.get("records") or payload.get("data") or []
+            total=int(payload.get("total") or len(recs) or 0)
+            return recs, total, len(recs)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            last_err=e
+            if attempt+1<API_RETRIES:
+                time.sleep(1.5*(attempt+1))
+                continue
+            raise
+        except requests.HTTPError:
+            raise
+    if last_err:
+        raise last_err
+    return [], 0, 0
+
+def _fetch_commodity(url, api_key, commodity, page_size=100):
+    """Fetch one commodity with a page cap so Render cold starts do not hang."""
+    records=[]
+    offset=0
+    got=0
+    total=None
+    pages=0
+    while pages<MAX_PAGES_PER_COMMODITY:
+        if offset:
+            time.sleep(0.6)
+        recs, page_total, n=_agmarknet_page(url, api_key, commodity, offset=offset, limit=page_size)
+        if total is None:
+            total=page_total
+        if not recs:
+            break
+        records.extend(recs)
+        got+=n
+        offset+=n
+        pages+=1
+        if got>=total or n<page_size:
+            break
+    return records
 
 def fetch_agmarknet(url, api_key):
     now=datetime.now()
     cooldown=st.session_state.get("_ag_cooldown")
     if cooldown and now<cooldown:
-        cached,_=_read_cache()
-        if cached is not None and len(cached): return cached,"cached"
+        cached,_,kind=_read_cache()
+        if cached is not None and len(cached):
+            return cached, kind or "cached"
         raise RuntimeError("data.gov.in is temporarily unavailable. Wait a few minutes and refresh.")
     records=[]
-    page_size=100
-    # Personal keys allow large pages; pull every onion/potato mandi available today.
-    try:
-        for i,com in enumerate(("Onion","Potato")):
-            if i: time.sleep(1.0)
-            offset=0
-            got=0
-            total=None
-            while True:
-                if offset: time.sleep(0.8)
-                recs, page_total, n=_agmarknet_page(url, api_key, com, offset=offset, limit=page_size)
-                if total is None: total=page_total
-                if not recs: break
-                records.extend(recs)
-                got+=n
-                offset+=n
-                if got>=total or n<page_size: break
-        if records:
-            _write_cache(records)
-            st.session_state.pop("_ag_cooldown", None)
-            return pd.DataFrame(records),"live"
-    except (requests.Timeout, requests.ConnectionError):
-        st.session_state["_ag_cooldown"]=now+timedelta(minutes=10)
-        cached,_=_read_cache()
-        if cached is not None and len(cached): return cached,"cached"
-        raise RuntimeError("data.gov.in timed out. Using demo until the government API is reachable.")
-    except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code==429:
-            st.session_state["_ag_cooldown"]=now+timedelta(minutes=15)
-            cached,_=_read_cache()
-            if cached is not None and len(cached): return cached,"cached"
-            raise RuntimeError("data.gov.in rate limit (HTTP 429). Wait a few minutes, or use your own free API key.") from e
-        cached,_=_read_cache()
-        if cached is not None and len(cached): return cached,"cached"
-        raise
-    cached,_=_read_cache()
-    if cached is not None and len(cached): return cached,"cached"
+    errors=[]
+    # Pull each commodity independently so one timeout does not discard the other.
+    for i,com in enumerate(("Onion","Potato")):
+        if i:
+            time.sleep(0.8)
+        try:
+            records.extend(_fetch_commodity(url, api_key, com))
+        except (requests.Timeout, requests.ConnectionError) as e:
+            errors.append(f"{com}: {type(e).__name__}")
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code==429:
+                st.session_state["_ag_cooldown"]=now+timedelta(minutes=15)
+                cached,_,kind=_read_cache()
+                if records:
+                    _write_cache(records)
+                    return pd.DataFrame(records),"live"
+                if cached is not None and len(cached):
+                    return cached, kind or "cached"
+                raise RuntimeError("data.gov.in rate limit (HTTP 429). Wait a few minutes, or use your own free API key.") from e
+            errors.append(f"{com}: HTTP {getattr(e.response,'status_code', '?')}")
+    if records:
+        _write_cache(records)
+        st.session_state.pop("_ag_cooldown", None)
+        return pd.DataFrame(records),"live"
+    if errors:
+        st.session_state["_ag_cooldown"]=now+timedelta(minutes=5)
+        cached,_,kind=_read_cache()
+        if cached is not None and len(cached):
+            return cached, kind or "cached"
+        raise RuntimeError(
+            "data.gov.in timed out from this host. "
+            "Government API is often slow from overseas cloud IPs; retry later or run locally in India."
+        )
+    cached,_,kind=_read_cache()
+    if cached is not None and len(cached):
+        return cached, kind or "cached"
     return pd.DataFrame(),"live"
 
 def _load_history():
@@ -608,33 +700,85 @@ def _empty_meta(demo_df=None, static=None):
     return {"demo":demo_df,"static_fields":static if static is not None else [],"live_fields":LIVE_PRICE_FIELDS,"derived_fields":STATIC_FIELDS}
 
 def load():
-    c=st.session_state.config; url=c.get("live_api_url","").strip(); token=(c.get("live_api_token") or "").strip()
-    if url:
+    c=st.session_state.config
+    url=c.get("live_api_url","").strip()
+    token=(c.get("live_api_token") or "").strip()
+    feed_url=(c.get("live_feed_url") or DEFAULT_FEED_URL).strip()
+    on_render=bool(os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_ID"))
+
+    # On Render (non-India), prefer CDN feed — data.gov.in usually times out from overseas.
+    # Locally, try government API first for true live, then CDN.
+    order_cdn_first=on_render or str(os.environ.get("PREFER_CDN_FEED","")).lower() in ("1","true","yes")
+
+    def _from_frame(raw, label, info=""):
+        d=normalize(raw)
+        d=d[d.commodity.str.lower().isin(["onion","potato"])]
+        if not len(d):
+            return None
+        d=derive_from_live(d)
+        if info:
+            st.info(info)
+        return d, label, _empty_meta()
+
+    attempts=[]
+    if order_cdn_first:
+        attempts.extend(["cdn","gov"])
+    else:
+        attempts.extend(["gov","cdn"])
+
+    last_err=""
+    for kind in attempts:
         try:
-            if _is_agmarknet(url):
+            if kind=="cdn":
+                raw, fetched=fetch_cdn_feed(feed_url)
+                if raw is not None and len(raw):
+                    when=f" (snapshot {fetched})" if fetched else ""
+                    info=(
+                        f"Serving AGMARKNET via CDN{when}. "
+                        "True live government API is unreliable from non-India hosts; "
+                        "refresh the GitHub feed from India for newer prices."
+                    ) if on_render else ""
+                    out=_from_frame(raw, "AGMARKNET CDN", info)
+                    if out: return out
+            elif kind=="gov" and url and _is_agmarknet(url):
                 raw, freshness=fetch_agmarknet(url, token or SAMPLE_API_KEY)
-                d=normalize(raw)
-                d=d[d.commodity.str.lower().isin(["onion","potato"])]
-                if len(d):
-                    d=derive_from_live(d)
-                    label="AGMARKNET CACHED" if freshness=="cached" else "AGMARKNET LIVE"
-                    if freshness=="cached":
-                        st.info("data.gov.in temporarily rate-limited this key. Showing last saved AGMARKNET prices.")
-                    return d,label,_empty_meta()
-            else:
+                if raw is not None and len(raw):
+                    if freshness=="live":
+                        out=_from_frame(raw, "AGMARKNET LIVE")
+                    elif freshness in ("seed","cdn-local"):
+                        out=_from_frame(
+                            raw,
+                            "AGMARKNET SEED" if freshness=="seed" else "AGMARKNET CDN",
+                            "Live data.gov.in did not respond. Showing bundled AGMARKNET snapshot.",
+                        )
+                    else:
+                        out=_from_frame(
+                            raw,
+                            "AGMARKNET CACHED",
+                            "data.gov.in was slow or rate-limited. Showing last saved AGMARKNET prices.",
+                        )
+                    if out: return out
+            elif kind=="gov" and url and not _is_agmarknet(url):
                 h={"Authorization":f"Bearer {token}"} if token else {}
                 r=requests.get(url,headers=h,timeout=20); r.raise_for_status(); p=r.json()
                 if isinstance(p,dict) and "data" in p: p=p["data"]
                 elif isinstance(p,dict) and "records" in p: p=p["records"]
-                d=normalize(pd.DataFrame(p))
-                if len(d):
-                    d=derive_from_live(d)
-                    return d,"LIVE API",_empty_meta()
+                out=_from_frame(pd.DataFrame(p), "LIVE API")
+                if out: return out
         except Exception as e:
-            msg=str(e)
-            if "api-key=" in msg or "api.data.gov.in" in msg:
-                msg="data.gov.in timed out or is unreachable. Cached mandi prices are used when available."
-            st.warning(f"Live API unavailable; demo feed used: {msg}")
+            last_err=str(e)
+            if "api-key=" in last_err or "api.data.gov.in" in last_err:
+                last_err="data.gov.in timed out or is unreachable."
+
+    # Final local fallbacks
+    cached,_,kind=_read_cache()
+    if cached is not None and len(cached):
+        label="AGMARKNET SEED" if kind=="seed" else ("AGMARKNET CDN" if "cdn" in (kind or "") else "AGMARKNET CACHED")
+        out=_from_frame(cached, label, last_err or "Using local AGMARKNET snapshot.")
+        if out: return out
+
+    if last_err:
+        st.warning(f"Live API unavailable; demo feed used: {last_err}")
     if "uploaded" in st.session_state:
         d=derive_from_live(normalize(st.session_state.uploaded))
         return d,"UPLOADED CSV",_empty_meta()
@@ -672,6 +816,8 @@ if not str(st.session_state.config.get("live_api_url","")).strip():
     st.session_state.config["live_api_url"]=AGMARKNET_URL
 if not str(st.session_state.config.get("live_api_token","")).strip():
     st.session_state.config["live_api_token"]=SAMPLE_API_KEY
+if not str(st.session_state.config.get("live_feed_url","")).strip():
+    st.session_state.config["live_feed_url"]=DEFAULT_FEED_URL
 
 st.markdown("""
 <style>

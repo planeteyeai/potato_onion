@@ -1,5 +1,6 @@
 streamlit>=1.37,<1.46
-altair>=5.0
+# Altair <6 breaks on Python 3.14 (TypedDict closed=True). Prefer Python 3.11 on Render.
+altair>=5.0,<6
 pandas>=2.2
 numpy>=1.26
 requests>=2.32

@@ -1,0 +1,41 @@
+name: Refresh AGMARKNET CDN feed
+
+on:
+  schedule:
+    # Every 3 hours — best-effort; data.gov.in often fails from US runners.
+    - cron: "20 */3 * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install requests
+        run: pip install "requests>=2.32"
+
+      - name: Refresh feed
+        env:
+          LIVE_API_TOKEN: ${{ secrets.LIVE_API_TOKEN }}
+          LIVE_API_URL: https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
+        run: python scripts/refresh_agmarknet_feed.py
+        continue-on-error: true
+
+      - name: Commit feed if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add feeds/agmarknet_latest.json agmarknet_seed.json
+          if git diff --staged --quiet; then
+            echo "No feed changes"
+          else
+            git commit -m "chore: refresh AGMARKNET CDN feed"
+            git push
+          fi

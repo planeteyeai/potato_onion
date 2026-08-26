@@ -10,5 +10,7 @@ services:
         value: 3.11.9
       - key: LIVE_API_URL
         value: https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
+      - key: LIVE_FEED_URL
+        value: https://cdn.jsdelivr.net/gh/Internsplaneteyeinfra/onion_potato_commodity@main/feeds/agmarknet_latest.json
       - key: LIVE_API_TOKEN
         sync: false
