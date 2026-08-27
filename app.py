@@ -80,24 +80,70 @@ def _read_cache():
     """Prefer runtime cache; then local CDN feed file; then committed seed."""
     df, fetched, _=_read_json_records(CACHE_FILE)
     if df is not None and len(df):
-        return df, fetched, "cached"
+        return _ensure_both_commodities(df), fetched, "cached"
     df, fetched, _=_read_json_records(FEED_FILE)
     if df is not None and len(df):
-        return df, fetched, "cdn-local"
+        return _ensure_both_commodities(df), fetched, "cdn-local"
     df, fetched, _=_read_json_records(SEED_FILE)
     if df is not None and len(df):
-        return df, fetched, "seed"
+        return _ensure_both_commodities(df), fetched, "seed"
     return None, None, None
 
+def _commodity_names(df):
+    if df is None or not len(df) or "commodity" not in df.columns:
+        return set()
+    return set(df["commodity"].astype(str).str.strip().str.lower().unique())
+
+def _ensure_both_commodities(df):
+    """Fill missing Onion or Potato from packaged feed/seed (partial live must not wipe one crop)."""
+    if df is None or not len(df):
+        return df
+    out=df.copy()
+    if "commodity" not in out.columns:
+        return out
+    need={"onion","potato"}-_commodity_names(out)
+    if not need:
+        return out
+    for path in (FEED_FILE, SEED_FILE, CACHE_FILE):
+        other,_,_=_read_json_records(path)
+        if other is None or not len(other) or "commodity" not in other.columns:
+            continue
+        extra=other[other["commodity"].astype(str).str.strip().str.lower().isin(need)]
+        if not len(extra):
+            continue
+        out=pd.concat([out, extra], ignore_index=True)
+        need={"onion","potato"}-_commodity_names(out)
+        if not need:
+            break
+    return out
+
+def _records_to_df(records):
+    if isinstance(records, pd.DataFrame):
+        df=records
+    else:
+        df=pd.DataFrame(records or [])
+    return _ensure_both_commodities(df)
+
 def _write_cache(records):
-    CACHE_FILE.write_text(json.dumps({"fetched_at":datetime.now().isoformat(),"records":records},ensure_ascii=False),encoding="utf-8")
+    df=_records_to_df(records)
+    if df is None or not len(df):
+        return
+    payload={"fetched_at":datetime.now().isoformat(),"records":df.to_dict(orient="records")}
+    CACHE_FILE.write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
 
 def fetch_cdn_feed(feed_url):
-    """Pull near-live AGMARKNET JSON from CDN / GitHub (reachable from Render)."""
+    """Prefer packaged feed (works on private repos); then remote CDN URL."""
+    # 1) Local file shipped with the deploy — always available on Render
+    df, fetched, _=_read_json_records(FEED_FILE)
+    if df is not None and len(df):
+        return _ensure_both_commodities(df), fetched
+    df, fetched, _=_read_json_records(SEED_FILE)
+    if df is not None and len(df):
+        return _ensure_both_commodities(df), fetched
+
     url=(feed_url or "").strip()
     if not url:
         return None, None
-    # Bust jsDelivr edge cache about once an hour
     bust=datetime.now().strftime("%Y%m%d%H")
     sep="&" if "?" in url else "?"
     try:
@@ -111,13 +157,9 @@ def fetch_cdn_feed(feed_url):
             recs=payload.get("records") or payload.get("data") or []
             fetched=payload.get("fetched_at","")
         if recs:
-            return pd.DataFrame(recs), fetched
+            return _ensure_both_commodities(pd.DataFrame(recs)), fetched
     except Exception:
         pass
-    # Local feed file from the same deploy (no network)
-    df, fetched, _=_read_json_records(FEED_FILE)
-    if df is not None and len(df):
-        return df, fetched
     return None, None
 
 def _agmarknet_page(url, api_key, commodity, offset=0, limit=100):
@@ -189,16 +231,22 @@ def fetch_agmarknet(url, api_key):
                 st.session_state["_ag_cooldown"]=now+timedelta(minutes=15)
                 cached,_,kind=_read_cache()
                 if records:
-                    _write_cache(records)
-                    return pd.DataFrame(records),"live"
+                    df=_records_to_df(records)
+                    _write_cache(df)
+                    return df,"live"
                 if cached is not None and len(cached):
                     return cached, kind or "cached"
                 raise RuntimeError("data.gov.in rate limit (HTTP 429). Wait a few minutes, or use your own free API key.") from e
             errors.append(f"{com}: HTTP {getattr(e.response,'status_code', '?')}")
     if records:
-        _write_cache(records)
+        df=_records_to_df(records)
+        _write_cache(df)
         st.session_state.pop("_ag_cooldown", None)
-        return pd.DataFrame(records),"live"
+        # Only call it fully "live" when both crops are present from the API
+        have=_commodity_names(df)
+        if errors and not {"onion","potato"}<=have:
+            return df, "cached"
+        return df, "live"
     if errors:
         st.session_state["_ag_cooldown"]=now+timedelta(minutes=5)
         cached,_,kind=_read_cache()
@@ -711,7 +759,7 @@ def load():
     order_cdn_first=on_render or str(os.environ.get("PREFER_CDN_FEED","")).lower() in ("1","true","yes")
 
     def _from_frame(raw, label, info=""):
-        d=normalize(raw)
+        d=normalize(_ensure_both_commodities(raw))
         d=d[d.commodity.str.lower().isin(["onion","potato"])]
         if not len(d):
             return None
