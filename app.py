@@ -9,6 +9,7 @@ from pathlib import Path
 import json
 import time
 import streamlit.components.v1 as components
+import redis
 
 st.set_page_config(page_title="Potato & Onion Commodity Intelligence", page_icon="🥔", layout="wide", initial_sidebar_state="collapsed")
 CONFIG_FILE=Path("config.json")
@@ -17,7 +18,7 @@ AGMARKNET_URL="https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d
 DEFAULT_FEED_URL="https://cdn.jsdelivr.net/gh/Internsplaneteyeinfra/onion_potato_commodity@main/feeds/agmarknet_latest.json"
 # Public data.gov.in sample key; replace with your own free key from data.gov.in for higher limits.
 SAMPLE_API_KEY="579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"
-DEFAULT={"refresh_seconds":60,"live_api_url":AGMARKNET_URL,"live_api_token":SAMPLE_API_KEY,"live_feed_url":DEFAULT_FEED_URL}
+DEFAULT={"refresh_seconds":86400,"live_api_url":AGMARKNET_URL,"live_api_token":SAMPLE_API_KEY,"live_feed_url":DEFAULT_FEED_URL}
 STATIC_FIELDS=["arrival_mt","stock_mt","buyer_demand_mt","quality_score","freight_rs_qtl"]
 LIVE_PRICE_FIELDS=["timestamp","market","state","commodity","variety","grade","min_price","modal_price","max_price"]
 API_HEADERS={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36","Accept":"application/json"}
@@ -33,6 +34,21 @@ API_TIMEOUT=(20, 45)
 API_RETRIES=3
 MAX_PAGES_PER_COMMODITY=5
 CDN_TIMEOUT=(8, 20)
+
+# Redis connection
+REDIS_URL = os.environ.get("REDIS_URL", "redis://default:YSKfQGkNwGNjbdicAATtaKXtMMuQPBci@redis.railway.internal:6379")
+redis_client = None
+
+def get_redis_client():
+    global redis_client
+    if redis_client is None:
+        try:
+            redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+            redis_client.ping()  # Test connection
+        except Exception as e:
+            print(f"Redis connection failed: {e}")
+            redis_client = None
+    return redis_client
 
 def _secret(name, default=""):
     val=(os.environ.get(name) or "").strip()
@@ -77,7 +93,22 @@ def _read_json_records(path):
     return None, None, None
 
 def _read_cache():
-    """Prefer runtime cache; then local CDN feed file; then committed seed."""
+    """Read from Redis cache, then fallback to local files."""
+    redis_conn = get_redis_client()
+    
+    # Try Redis first
+    if redis_conn:
+        try:
+            cached_data = redis_conn.get("agmarknet_cache")
+            if cached_data:
+                data = json.loads(cached_data)
+                df = pd.DataFrame(data.get("records", []))
+                if len(df):
+                    return _ensure_both_commodities(df), data.get("fetched_at"), "redis_cached"
+        except Exception as e:
+            print(f"Redis read error: {e}")
+    
+    # Fallback to file-based cache
     df, fetched, _=_read_json_records(CACHE_FILE)
     if df is not None and len(df):
         return _ensure_both_commodities(df), fetched, "cached"
@@ -125,10 +156,22 @@ def _records_to_df(records):
     return _ensure_both_commodities(df)
 
 def _write_cache(records):
+    """Write to Redis cache with 24 hour TTL, and file backup."""
     df=_records_to_df(records)
     if df is None or not len(df):
         return
+    
     payload={"fetched_at":datetime.now().isoformat(),"records":df.to_dict(orient="records")}
+    
+    # Write to Redis with 24 hour TTL
+    redis_conn = get_redis_client()
+    if redis_conn:
+        try:
+            redis_conn.setex("agmarknet_cache", 86400, json.dumps(payload, ensure_ascii=False))
+        except Exception as e:
+            print(f"Redis write error: {e}")
+    
+    # Keep file backup
     CACHE_FILE.write_text(json.dumps(payload,ensure_ascii=False),encoding="utf-8")
 
 def fetch_cdn_feed(feed_url):
