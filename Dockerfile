@@ -29,5 +29,5 @@ COPY .streamlit/ .streamlit/
 # Expose the port that Streamlit runs on
 EXPOSE 8501
 
-# Run the application  
-CMD ["streamlit", "run", "app.py", "--server.port=$PORT", "--server.address=0.0.0.0", "--server.headless=true"]
+# Run the application
+CMD streamlit run app.py --server.port ${PORT:-8501} --server.address 0.0.0.0 --server.headless true
