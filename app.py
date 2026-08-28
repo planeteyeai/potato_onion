@@ -167,7 +167,7 @@ def _write_cache(records):
     redis_conn = get_redis_client()
     if redis_conn:
         try:
-            redis_conn.setex("agmarknet_cache", 86400, json.dumps(payload, ensure_ascii=False))
+            redis_conn.setex("agmarknet_cache", 300, json.dumps(payload, ensure_ascii=False))
         except Exception as e:
             print(f"Redis write error: {e}")
     
