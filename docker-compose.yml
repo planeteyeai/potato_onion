@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  potato-onion-intelligence:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    container_name: potato-onion-app
+    volumes:
+      # Uncomment the line below if you want to persist data files
+      # - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8501/_stcore/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
